@@ -23,7 +23,10 @@
 
 #include "can.h"
 #include "bsp_can.h"
+#include "oled.h"
+#include "stdio.h"
 
+char message[50];
 moto_measure_t moto_chassis[4] =
 { 0 }; //4 chassis moto
 
@@ -109,6 +112,21 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *_hcan)
         i = RxHeader.StdId - CAN_2006Moto1_ID;
 
         get_moto_measure(&moto_chassis[i], RxData);
+
+        if (i == 1)
+        {
+            oled_refresh_gram();
+            oled_showstring1(0,  2, "Parameters:");
+            sprintf(message, "%d", moto_chassis[i].last_angle);
+            oled_showstring1(1,  2, message);
+            sprintf(message, "%d", moto_chassis[i].angle);
+            oled_showstring1(2,  2, message);
+            sprintf(message, "%d", moto_chassis[i].speed_rpm);
+            oled_showstring1(3,  2, message);
+            sprintf(message, "%.3f", moto_chassis[i].real_current);
+            oled_showstring1(4,  2, message);
+            oled_refresh_gram();
+        }
     }
         break;
     }

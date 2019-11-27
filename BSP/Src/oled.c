@@ -26,19 +26,7 @@
  * [7]0 1 2 3 ... 127
  **/
 
-static uint8_t OLED_GRAM[128][8];
-
-//short delay uesd in spi transmmit
-void delay_ms(uint16_t delaytimes)
-{
-    uint16_t i;
-    for (i = 0; i < delaytimes; i++)
-    {
-        int a = 10000;  //delay based on mian clock, 168Mhz
-        while (a--)
-            ;
-    }
-}
+static uint8_t OLED_GRAM[132][8];
 
 /**
  * @brief   write data/command to OLED
@@ -109,8 +97,7 @@ void oled_refresh_gram(void)
     for (i = 0; i < 8; i++)
     {
         oled_set_pos(0, i);
-
-        for (n = 0; n < 128; n++)
+        for (n = 0; n < 132; n++)
         {
             oled_write_byte(OLED_GRAM[n][i], OLED_DATA);
         }
@@ -129,7 +116,7 @@ void oled_clear(Pen_Typedef pen)
 
     for (i = 0; i < 8; i++)
     {
-        for (n = 0; n < 128; n++)
+        for (n = 0; n < 132; n++)
         {
             if (pen == Pen_Write)
                 OLED_GRAM[n][i] = 0xff;
@@ -329,8 +316,43 @@ void oled_showstring(uint8_t row, uint8_t col, uint8_t *chr)
     }
 }
 
+void oled_showstring1(uint8_t row, uint8_t col, char *chr)
+{
+    uint8_t n = 0;
+
+    while (chr[n] != '\0')
+    {
+        oled_showchar(row, col, chr[n]);
+        col++;
+
+        if (col > 20)
+        {
+            col = 0;
+            row += 1;
+        }
+        n++;
+    }
+}
+
+// Not working
+void oled_sprintf(uint8_t row, uint8_t col, const char *fmt, ...)
+{
+    char message[50] = "\0";
+
+    va_list argp;
+    va_start(argp, fmt);
+
+    sprintf(message, fmt, argp);
+
+    va_end(argp);
+
+    oled_showstring1(row, col, message);
+}
+
+
+
 /**
- * @brief   formatted output in oled 128*64
+ * @brief   formatted output in oled 132*64
  * @param   row: row of character string begin, 0 <= row <= 4;
  * @param   col: column of character string begin, 0 <= col <= 20;
  * @param   *fmt: the pointer to format character string
@@ -339,7 +361,7 @@ void oled_showstring(uint8_t row, uint8_t col, uint8_t *chr)
  */
 void oled_printf(uint8_t row, uint8_t col, const char *fmt, ...)
 {
-    uint8_t LCD_BUF[128] =
+    uint8_t LCD_BUF[132] =
     { 0 };
     uint8_t remain_size = 0;
     va_list ap;
@@ -384,6 +406,35 @@ void oled_LOGO(void)
     oled_refresh_gram();
 }
 
+// Send single byte command to display
+// input:
+//   cmd - display command
+static void SH1106_cmd(uint8_t cmd)
+{
+    // Deassert DC pin -> command transmit
+    OLED_CMD_Clr();
+
+    // Send command to display
+    uint8_t command = cmd;
+    HAL_SPI_Transmit(&hspi1, &command, 1, 20);
+}
+
+// Send double byte command to display
+// input:
+//   cmd1 - first byte of double-byte command
+//   cmd2 - second byte of double-byte command
+static void SH1106_cmd_double(uint8_t cmd1, uint8_t cmd2)
+{
+    // Deassert DC pin -> command transmit
+    OLED_CMD_Clr();
+
+    // Send double byte command to display
+    uint8_t command[2];
+    command[0] = cmd1;
+    command[1] = cmd2;
+    HAL_SPI_Transmit(&hspi1, command, 2, 20);
+}
+
 /**
  * @brief   initialize the oled module
  * @param   None
@@ -391,40 +442,79 @@ void oled_LOGO(void)
  */
 void oled_init(void)
 {
+    // Hardware display reset
     OLED_RST_Clr();
     HAL_Delay(500);
     OLED_RST_Set();
 
-    oled_write_byte(0xae, OLED_CMD);    //turn off oled panel
-    oled_write_byte(0x00, OLED_CMD);    //set low column address
-    oled_write_byte(0x10, OLED_CMD);    //set high column address
-    oled_write_byte(0x40, OLED_CMD);    //set start line address
-    oled_write_byte(0x81, OLED_CMD);    //set contrast control resigter
-    oled_write_byte(0xcf, OLED_CMD);    //set SEG output current brightness
-    oled_write_byte(0xa1, OLED_CMD);    //set SEG/column mapping
-    oled_write_byte(0xc8, OLED_CMD);    //set COM/row scan direction
-    oled_write_byte(0xa6, OLED_CMD);    //set nomarl display
-    oled_write_byte(0xa8, OLED_CMD);    //set multiplex display
-    oled_write_byte(0x3f, OLED_CMD);    //1/64 duty
-    oled_write_byte(0xd3, OLED_CMD);    //set display offset
-    oled_write_byte(0x00, OLED_CMD);    //not offest
-    oled_write_byte(0xd5, OLED_CMD); //set display clock divide ratio/oscillator frequency
-    oled_write_byte(0x80, OLED_CMD);    //set divide ratio
-    oled_write_byte(0xd9, OLED_CMD);    //set pre-charge period
-    oled_write_byte(0xf1, OLED_CMD); //pre-charge: 15 clocks, discharge: 1 clock
-    oled_write_byte(0xda, OLED_CMD);    //set com pins hardware configuration
-    oled_write_byte(0x12, OLED_CMD);    //
-    oled_write_byte(0xdb, OLED_CMD);    //set vcomh
-    oled_write_byte(0x40, OLED_CMD);    //set vcom deselect level
-    oled_write_byte(0x20, OLED_CMD);    //set page addressing mode
-    oled_write_byte(0x02, OLED_CMD);    //
-    oled_write_byte(0x8d, OLED_CMD);    //set charge pump enable/disable
-    oled_write_byte(0x14, OLED_CMD);    //charge pump disable
-    oled_write_byte(0xa4, OLED_CMD);    //disable entire dispaly on
-    oled_write_byte(0xa6, OLED_CMD);    //disable inverse display on
-    oled_write_byte(0xaf, OLED_CMD);    //turn on oled panel
+    // Initial display configuration
 
-    oled_write_byte(0xaf, OLED_CMD);    //display on
+    //turn off oled panel
+    SH1106_cmd(SH1106_CMD_DISP_OFF);
+
+    //set low & high column address
+    SH1106_cmd(SH1106_CMD_COL_LOW);
+    SH1106_cmd(SH1106_CMD_COL_HIGH);
+
+    // Set multiplex ratio (visible lines)
+    SH1106_cmd_double(SH1106_CMD_SETMUX, 0x3F); // 64MUX
+
+    // Set display offset (offset of first line from the top of display)
+    SH1106_cmd_double(SH1106_CMD_SETOFFS, 0x00); // Offset: 0
+
+    // Set display start line (first line displayed)
+    SH1106_cmd(SH1106_CMD_STARTLINE | 0x00); // Start line: 0
+
+    // Set segment re-map (X coordinate)
+    SH1106_cmd(SH1106_CMD_SEG_INV);
+
+    // Set COM output scan direction (Y coordinate)
+    SH1106_cmd(SH1106_CMD_COM_INV);
+
+    // Set COM pins hardware configuration
+    // bit[4]: reset - sequential COM pin configuration
+    //         set   - alternative COM pin configuration (reset value)
+    // bit[5]: reset - disable COM left/right remap (reset value)
+    //         set   - enable COM left/right remap
+    SH1106_cmd_double(SH1106_CMD_COM_HW, 0x12);
+
+    //pre-charge: 15 clocks, discharge: 1 clock
+    uint8_t dis_charge = 0x01;
+    uint8_t pre_charge = 0x0f;
+    SH1106_cmd_double(SH1106_CMD_CHARGE, dis_charge | (pre_charge << 4));
+
+    // Set contrast control
+    SH1106_cmd_double(SH1106_CMD_CONTRAST, 0xF0); // Contrast: 00H-FFH (256 levels)
+
+    SH1106_cmd(0x30);
+
+    // Disable entire display ON
+    SH1106_cmd(SH1106_CMD_EDOFF); // Display follows RAM content
+
+    // Disable display inversion
+    SH1106_cmd(SH1106_CMD_INV_OFF); // Normal display mode
+
+    // Set clock divide ratio and oscillator frequency
+    // bits[3:0] defines the divide ratio of the display clocks (bits[3:0] + 1)
+    // bits[7:4] set the oscillator frequency (Fosc), frequency increases with the value of these bits
+    // 0xF0 value gives maximum frequency (maximum Fosc without divider)
+    // 0x0F value gives minimum frequency (minimum Fosc divided by 16)
+    // The higher display frequency decreases image flickering but increases current consumption and vice versa
+    SH1106_cmd_double(SH1106_CMD_CLOCKDIV, 0x80);
+
+    // Display ON
+    SH1106_cmd(SH1106_CMD_DISP_ON); // Display enabled
+
+
+
+//    oled_write_byte(0xdb, OLED_CMD);    //set vcomh
+//    oled_write_byte(0x40, OLED_CMD);    //set vcom deselect level
+//    oled_write_byte(0x20, OLED_CMD);    //set page addressing mode
+//    oled_write_byte(0x02, OLED_CMD);    //
+//    oled_write_byte(0x8d, OLED_CMD);    //set charge pump enable/disable
+//    oled_write_byte(0x14, OLED_CMD);    //charge pump disable
+//    oled_write_byte(0xa4, OLED_CMD);    //disable entire dispaly on
+//    oled_write_byte(0xa6, OLED_CMD);    //disable inverse display on
 
     oled_clear(Pen_Clear);
     oled_set_pos(0, 0);

@@ -30,6 +30,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "stdio.h"
+
 #include "oled.h"
 #include "bsp_can.h"
 #include "pid.h"
@@ -57,6 +59,8 @@ PID_TypeDef motor_pid[4];
 int32_t set_spd = 0;
 static int key_sta = 0;
 int speed_step_sign = +1;
+
+char message[50];
 
 uint16_t TIM_COUNT[2];
 #define SpeedStep 500
@@ -106,7 +110,7 @@ void Key_Scan()
 int main(void)
 {
     /* USER CODE BEGIN 1 */
-    uint8_t message[] = "Hallo, Welt!";
+
     /* USER CODE END 1 */
 
     /* MCU Configuration--------------------------------------------------------*/
@@ -143,14 +147,12 @@ int main(void)
     // OLED init
     led_off();
     oled_init();
+    oled_clear(Pen_Clear);
+    oled_refresh_gram();
 
     HAL_UART_Receive_IT_IDLE(&huart1, UART_Buffer, 100);
 
     HAL_TIM_IC_Start_DMA(&htim1, TIM_CHANNEL_2, (uint32_t*) TIM_COUNT, 2);
-
-    oled_printf(0, 0, "Hallo, Welt!");
-    oled_refresh_gram();
-
 
     /*< 初始化PID参数 >*/
     for (int i = 0; i < 4; i++)
@@ -159,8 +161,9 @@ int main(void)
         motor_pid[i].f_param_init(&motor_pid[i], PID_Speed, 16384, 5000, 10, 0,
                 8000, 0, 1.5, 0.1, 0);
     }
-    oled_printf(1, 0, "Loading...");
-    oled_refresh_gram();
+
+    Key_Scan();
+    set_spd = 0;
 
     /* USER CODE END 2 */
 
@@ -176,7 +179,8 @@ int main(void)
 //        {
 //            set_spd = 0;
 //        }
-        set_spd = 0;
+        Key_Scan();
+//        set_spd = 0;
 
         for (int i = 0; i < 4; i++)
         {
@@ -186,12 +190,18 @@ int main(void)
         set_moto_current(&hcan1, motor_pid[0].output, motor_pid[1].output,
                 motor_pid[2].output, motor_pid[3].output);
 
-//        oled_clear(Pen_Clear);
-//        oled_printf(0, 0, "Motor current: %f\n%f\n%f\n%f",
-//                motor_pid[0].output, motor_pid[1].output,
-//                motor_pid[2].output, motor_pid[3].output);
-//        oled_printf(2, 0, "Finished!");
 //        oled_refresh_gram();
+//        oled_showstring1(0,  2, "Speed:");
+//        sprintf(message, "%5.2f", motor_pid[0].output);
+//        oled_showstring1(1,  2, message);
+//        sprintf(message, "%5.2f", motor_pid[1].output);
+//        oled_showstring1(2,  2, message);
+//        sprintf(message, "%5.2f", motor_pid[2].output);
+//        oled_showstring1(3,  2, message);
+//        sprintf(message, "%5.2f", motor_pid[3].output);
+//        oled_showstring1(4,  2, message);
+//        oled_refresh_gram();
+
         HAL_Delay(10);      //PID控制频率100HZ
         /* USER CODE END WHILE */
 
