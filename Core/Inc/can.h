@@ -30,7 +30,9 @@
 
 /* USER CODE END Includes */
 
-extern CAN_HandleTypeDef hcan1;
+extern CAN_HandleTypeDef     hcan1;
+extern CAN_RxHeaderTypeDef   RxHeader;
+extern uint8_t               RxData[];
 
 /* USER CODE BEGIN Private defines */
 
