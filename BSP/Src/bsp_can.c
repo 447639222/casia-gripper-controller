@@ -37,7 +37,7 @@ void get_moto_offset(moto_measure_t *ptr, uint8_t aData[]);
  * @Retval	None
  * @Date    2019/11/27
  *******************************************************************************************/
-void can_filter_config(CAN_HandleTypeDef *_hcan)
+void BSP_CAN_Filter_Config(CAN_HandleTypeDef *_hcan)
 {
     CAN_FilterTypeDef sCanFilterConf;
 
@@ -60,6 +60,23 @@ void can_filter_config(CAN_HandleTypeDef *_hcan)
     }
 }
 
+void BSP_CAN1_Init(void)
+{
+    BSP_CAN_Filter_Config(&hcan1);
+
+    if (HAL_CAN_Start(&hcan1) != HAL_OK)
+    {
+        /* Start Error */
+        Error_Handler();
+    }
+    if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING)
+            != HAL_OK)
+    {
+        /* Notification Error */
+        Error_Handler();
+    }
+}
+
 uint32_t FlashTimer;
 /*******************************************************************************************
  * @Func	void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef* _hcan)
@@ -76,8 +93,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *_hcan)
         FlashTimer = HAL_GetTick();
     }
 
-    if (HAL_CAN_GetRxMessage(_hcan, CAN_RX_FIFO0, &RxHeader, RxData)
-            != HAL_OK)
+    if (HAL_CAN_GetRxMessage(_hcan, CAN_RX_FIFO0, &RxHeader, RxData) != HAL_OK)
     {
         Error_Handler();
     }
@@ -125,8 +141,7 @@ void get_moto_measure(moto_measure_t *ptr, uint8_t aData[])
 /*this function should be called after system+can init */
 void get_moto_offset(moto_measure_t *ptr, uint8_t aData[])
 {
-    ptr->angle =
-            (uint16_t) (aData[0] << 8 | aData[1]);
+    ptr->angle = (uint16_t) (aData[0] << 8 | aData[1]);
     ptr->offset_angle = ptr->angle;
 }
 
@@ -161,9 +176,9 @@ void get_total_angle(moto_measure_t *p)
 void set_moto_current(CAN_HandleTypeDef *_hcan, s16 iq1, s16 iq2, s16 iq3,
         s16 iq4)
 {
-    CAN_TxHeaderTypeDef   txHeader;
-    uint8_t               txData[8];
-    uint32_t              txMailbox;
+    CAN_TxHeaderTypeDef txHeader;
+    uint8_t txData[8];
+    uint32_t txMailbox;
 
     txHeader.StdId = 0x200;
     txHeader.IDE = CAN_ID_STD;
@@ -182,7 +197,7 @@ void set_moto_current(CAN_HandleTypeDef *_hcan, s16 iq1, s16 iq2, s16 iq3,
     /* Start the Transmission process */
     if (HAL_CAN_AddTxMessage(_hcan, &txHeader, txData, &txMailbox) != HAL_OK)
     {
-      /* Transmission request Error */
-      Error_Handler();
+        /* Transmission request Error */
+        Error_Handler();
     }
 }

@@ -20,14 +20,17 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "can.h"
 #include "dma.h"
+#include "spi.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "oled.h"
 #include "bsp_can.h"
 #include "pid.h"
 #include "remote_control.h"
@@ -76,7 +79,7 @@ void Key_Scan()
             key_sta = 1;
             set_spd += SpeedStep * speed_step_sign;
 
-            if (set_spd > 3000)
+            if (set_spd > 1000)
             {
                 speed_step_sign = -1;
             }
@@ -103,7 +106,7 @@ void Key_Scan()
 int main(void)
 {
     /* USER CODE BEGIN 1 */
-
+    uint8_t message[] = "Hallo, Welt!";
     /* USER CODE END 1 */
 
     /* MCU Configuration--------------------------------------------------------*/
@@ -128,27 +131,26 @@ int main(void)
     MX_CAN1_Init();
     MX_USART1_UART_Init();
     MX_TIM1_Init();
+    MX_ADC1_Init();
+    MX_SPI1_Init();
     /* USER CODE BEGIN 2 */
+    // Power on the motor output 24V (PH2)
     HAL_GPIO_WritePin(PWR_GPIO_Port, PWR_Pin, GPIO_PIN_SET);
 
-    can_filter_config(&hcan1);
-    if (HAL_CAN_Start(&hcan1) != HAL_OK)
-    {
-        /* Start Error */
-        Error_Handler();
-    }
+    // Config & Start CAN1
+    BSP_CAN1_Init();
 
-    if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING)
-            != HAL_OK)
-    {
-        /* Notification Error */
-        Error_Handler();
-    }
+    // OLED init
+    led_off();
+    oled_init();
 
-//	HAL_CAN_Receive_IT(&hcan1, CAN_FIFO0);
     HAL_UART_Receive_IT_IDLE(&huart1, UART_Buffer, 100);
 
     HAL_TIM_IC_Start_DMA(&htim1, TIM_CHANNEL_2, (uint32_t*) TIM_COUNT, 2);
+
+    oled_printf(0, 0, "Hallo, Welt!");
+    oled_refresh_gram();
+
 
     /*< 初始化PID参数 >*/
     for (int i = 0; i < 4; i++)
@@ -157,20 +159,24 @@ int main(void)
         motor_pid[i].f_param_init(&motor_pid[i], PID_Speed, 16384, 5000, 10, 0,
                 8000, 0, 1.5, 0.1, 0);
     }
+    oled_printf(1, 0, "Loading...");
+    oled_refresh_gram();
+
     /* USER CODE END 2 */
 
     /* Infinite loop */
     /* USER CODE BEGIN WHILE */
     while (1)
     {
-        if (HAL_GetTick() - Latest_Remote_Control_Pack_Time > 500)
-        {   //如果500ms都没有收到遥控器数据，证明遥控器可能已经离线，切换到按键控制模式
-            Key_Scan();
-        }
-        else
-        {
-            set_spd = remote_control.ch4 * 8000 / 660;
-        }
+//        if (HAL_GetTick() - Latest_Remote_Control_Pack_Time > 500)
+//        {   //如果500ms都没有收到遥控器数据，证明遥控器可能已经离线，切换到按键控制模式
+//            Key_Scan();
+//        }
+//        else
+//        {
+//            set_spd = 0;
+//        }
+        set_spd = 0;
 
         for (int i = 0; i < 4; i++)
         {
@@ -180,6 +186,12 @@ int main(void)
         set_moto_current(&hcan1, motor_pid[0].output, motor_pid[1].output,
                 motor_pid[2].output, motor_pid[3].output);
 
+//        oled_clear(Pen_Clear);
+//        oled_printf(0, 0, "Motor current: %f\n%f\n%f\n%f",
+//                motor_pid[0].output, motor_pid[1].output,
+//                motor_pid[2].output, motor_pid[3].output);
+//        oled_printf(2, 0, "Finished!");
+//        oled_refresh_gram();
         HAL_Delay(10);      //PID控制频率100HZ
         /* USER CODE END WHILE */
 

@@ -21,12 +21,11 @@
 #include "can.h"
 
 /* USER CODE BEGIN 0 */
-
-/* USER CODE END 0 */
-
-CAN_HandleTypeDef     hcan1;
 CAN_RxHeaderTypeDef   RxHeader;
 uint8_t               RxData[8];
+/* USER CODE END 0 */
+
+CAN_HandleTypeDef hcan1;
 
 /* CAN1 init function */
 void MX_CAN1_Init(void)
