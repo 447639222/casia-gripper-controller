@@ -23,6 +23,7 @@
 #include "adc.h"
 #include "can.h"
 #include "spi.h"
+#include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -84,10 +85,8 @@ void Key_Scan()
             {
                 speed_step_sign = -1;
             }
-
-            if (set_spd <= 0)
+            if (set_spd < -1000)
             {
-                set_spd = 0;
                 speed_step_sign = 1;
             }
         }
@@ -132,9 +131,12 @@ int main(void)
   MX_CAN1_Init();
   MX_ADC1_Init();
   MX_SPI1_Init();
+  MX_TIM10_Init();
   /* USER CODE BEGIN 2 */
     // Power on the motor output 24V (PH2)
     HAL_GPIO_WritePin(PWR_GPIO_Port, PWR_Pin, GPIO_PIN_SET);
+
+    HAL_TIM_Base_Start_IT(&htim10);
 
     // Config & Start CAN1
     BSP_CAN1_Init();
@@ -256,6 +258,20 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   }
   /* USER CODE BEGIN Callback 1 */
 
+    if (htim->Instance == TIM10)
+    {
+        oled_clear(Pen_Clear);
+        oled_showstring1(0, 2, "Parameters:");
+        sprintf(message, "%d", moto_chassis[1].last_angle);
+        oled_showstring1(1, 2, message);
+        sprintf(message, "%d", moto_chassis[1].angle);
+        oled_showstring1(2, 2, message);
+        sprintf(message, "%d", moto_chassis[1].speed_rpm);
+        oled_showstring1(3, 2, message);
+        sprintf(message, "%.3f", moto_chassis[1].real_current);
+        oled_showstring1(4, 2, message);
+        oled_refresh_gram();
+    }
   /* USER CODE END Callback 1 */
 }
 
