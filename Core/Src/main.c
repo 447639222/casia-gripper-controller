@@ -24,6 +24,7 @@
 #include "can.h"
 #include "spi.h"
 #include "tim.h"
+#include "usb_device.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -33,6 +34,7 @@
 #include "oled.h"
 #include "bsp_can.h"
 #include "pid.h"
+#include "usbd_cdc_if.h"
 //#include "remote_control.h"
 /* USER CODE END Includes */
 
@@ -132,6 +134,7 @@ int main(void)
   MX_ADC1_Init();
   MX_SPI1_Init();
   MX_TIM10_Init();
+  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
     // Power on the motor output 24V (PH2)
     HAL_GPIO_WritePin(PWR_GPIO_Port, PWR_Pin, GPIO_PIN_SET);
@@ -162,6 +165,10 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+//    while(1)
+//    {
+//        Main_loop();
+//    }
     while (1)
     {
         Key_Scan();
@@ -173,18 +180,6 @@ int main(void)
         }
         set_moto_current(&hcan1, motor_pid[0].output, motor_pid[1].output,
                 motor_pid[2].output, motor_pid[3].output);
-
-//        oled_refresh_gram();
-//        oled_showstring1(0,  2, "Speed:");
-//        sprintf(message, "%5.2f", motor_pid[0].output);
-//        oled_showstring1(1,  2, message);
-//        sprintf(message, "%5.2f", motor_pid[1].output);
-//        oled_showstring1(2,  2, message);
-//        sprintf(message, "%5.2f", motor_pid[2].output);
-//        oled_showstring1(3,  2, message);
-//        sprintf(message, "%5.2f", motor_pid[3].output);
-//        oled_showstring1(4,  2, message);
-//        oled_refresh_gram();
 
         HAL_Delay(10);      //PID控制频率100HZ
     /* USER CODE END WHILE */
@@ -216,7 +211,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLM = 6;
   RCC_OscInitStruct.PLL.PLLN = 168;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 4;
+  RCC_OscInitStruct.PLL.PLLQ = 7;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
