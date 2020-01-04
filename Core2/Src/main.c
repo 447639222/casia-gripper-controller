@@ -24,6 +24,7 @@
 #include "can.h"
 #include "spi.h"
 #include "tim.h"
+#include "usart.h"
 #include "usb_device.h"
 #include "gpio.h"
 
@@ -45,6 +46,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define APP_RX_DATA_SIZE  2048
+#define APP_TX_DATA_SIZE  2048
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -57,11 +60,18 @@
 /* USER CODE BEGIN PV */
 PID_TypeDef motor_pid[4];
 int32_t set_spd = 0;
+int32_t set_spd1 = 0;
+int32_t set_spd2 = 0;
 static int key_sta = 0;
 int speed_step_sign = +1;
 
+extern uint8_t UserRxBufferFS[APP_RX_DATA_SIZE];
+extern uint32_t buffsize;
+extern uint8_t UserTxBufferFS[APP_TX_DATA_SIZE];
+extern uint32_t UserTxBufPtrOut;
+uint16_t a[50];
 char message[50];
-
+char TxBuffer[50];
 uint16_t TIM_COUNT[2];
 #define SpeedStep 500
 /* USER CODE END PV */
@@ -81,13 +91,13 @@ void Key_Scan()
         if (key_sta == 0)
         {
             key_sta = 1;
-            set_spd += SpeedStep * speed_step_sign;
+            set_spd1 += SpeedStep * speed_step_sign;
 
-            if (set_spd > 1000)
+            if (set_spd1 > 1000)
             {
                 speed_step_sign = -1;
             }
-            if (set_spd < -1000)
+            if (set_spd1 < -1000)
             {
                 speed_step_sign = 1;
             }
@@ -99,6 +109,9 @@ void Key_Scan()
     }
 
 }
+
+
+
 /* USER CODE END 0 */
 
 /**
@@ -134,10 +147,14 @@ int main(void)
   MX_ADC1_Init();
   MX_SPI1_Init();
   MX_TIM10_Init();
+  MX_UART4_Init();
+  MX_UART8_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
     // Power on the motor output 24V (PH2)
     HAL_GPIO_WritePin(PWR_GPIO_Port, PWR_Pin, GPIO_PIN_SET);
+    // Power on the motor output 24V (PH3)
+        HAL_GPIO_WritePin(GPIOH, GPIO_PIN_3, GPIO_PIN_SET);
 
     HAL_TIM_Base_Start_IT(&htim10);
 
@@ -159,25 +176,61 @@ int main(void)
     }
 
     Key_Scan();
+    set_spd1 = 0;
+    set_spd2 = 0;
     set_spd = 0;
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-//    while(1)
-//    {
-//        Main_loop();
-//    }
+    while(1)
+    {
+
+        Main_loop();
+
+//        for(int k=1;k<buffsize;k++){
+//        	if(UserRxBufferFS[k] >= 48 && UserRxBufferFS[k] <= 57)
+//        	{
+//        		a[k] = UserRxBufferFS[k] - 48;
+//        	}
+//        }
+//		for(int k=1;k<buffsize;k++){
+//						set_spd=set_spd*10+a[k];
+//				}
+        //printf("%d",UserRxBufferFS[1]);
+//
+        if(buffsize==4){
+
+        	set_spd=UserRxBufferFS[1]-48;
+
+        }
+        if(buffsize==5){
+        	 set_spd=UserRxBufferFS[1]-48;
+        	 set_spd=set_spd*10;
+        	 set_spd =set_spd+UserRxBufferFS[2]-48;
+        }
+        if(UserRxBufferFS[0]=='a'){
+                      	set_spd1 = set_spd*100;
+              		}
+      	if(UserRxBufferFS[0]=='b'){
+      					set_spd2 = set_spd*100;
+                    }
+    }
+
+
     while (1)
     {
         Key_Scan();
 
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 3; i++)
         {
-            motor_pid[i].target = set_spd;
+            motor_pid[i].target = set_spd1;
             motor_pid[i].f_cal_pid(&motor_pid[i], moto_chassis[i].speed_rpm);
+
         }
+        motor_pid[3].target = set_spd2;
+                   motor_pid[3].f_cal_pid(&motor_pid[3], moto_chassis[3].speed_rpm);
+
         set_moto_current(&hcan1, motor_pid[0].output, motor_pid[1].output,
                 motor_pid[2].output, motor_pid[3].output);
 
@@ -185,6 +238,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
     }
   /* USER CODE END 3 */
 }
@@ -257,13 +311,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     {
         oled_clear(Pen_Clear);
         oled_showstring1(0, 2, "Parameters:");
-        sprintf(message, "%d", moto_chassis[1].last_angle);
+        sprintf(message, "%c", UserRxBufferFS[0]);
+        //sprintf(message, "%d", moto_chassis[1].last_angle);
         oled_showstring1(1, 2, message);
-        sprintf(message, "%d", moto_chassis[1].angle);
+        sprintf(message, "%ld",set_spd);
+        //sprintf(message, "%d", moto_chassis[1].angle);
         oled_showstring1(2, 2, message);
-        sprintf(message, "%d", moto_chassis[1].speed_rpm);
+        //sprintf(message, "%d", moto_chassis[1].speed_rpm);
+        sprintf(message, "%ld",set_spd1);
         oled_showstring1(3, 2, message);
-        sprintf(message, "%.3f", moto_chassis[1].real_current);
+        //sprintf(message, "%.3f", moto_chassis[1].real_current);
+        sprintf(message, "%ld",set_spd2);
         oled_showstring1(4, 2, message);
         oled_refresh_gram();
     }
